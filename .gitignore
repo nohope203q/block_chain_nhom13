@@ -4,3 +4,5 @@ cache/
 coverage/
 .env
 frontend/js/deployment.js
+hardhat-node.log
+hardhat-node-error.log

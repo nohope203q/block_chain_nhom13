@@ -7,6 +7,43 @@ import { getCurrentAccount } from "./wallet.js";
 
 let scanner;
 let scanLocked = false;
+let scannerTransition = false;
+
+function supportedFormats() {
+  return [
+    Html5QrcodeSupportedFormats.QR_CODE,
+    Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.CODE_39,
+  ];
+}
+
+function getScanner() {
+  if (!scanner) {
+    scanner = new Html5Qrcode("qr-reader", {
+      formatsToSupport: supportedFormats(),
+      verbose: false,
+    });
+  }
+  return scanner;
+}
+
+function cameraErrorMessage(error) {
+  const name = String(error?.name || "");
+  const message = String(error?.message || error || "");
+  if (name === "NotAllowedError" || /permission|denied|notallowed/i.test(message)) {
+    return "Trình duyệt đang chặn camera. Hãy cho phép quyền Camera trong biểu tượng ổ khóa cạnh thanh địa chỉ rồi tải lại trang.";
+  }
+  if (name === "NotFoundError" || /not found|no camera|no cameras/i.test(message)) {
+    return "Không tìm thấy camera trên thiết bị này.";
+  }
+  if (name === "NotReadableError" || /could not start|not readable|track start/i.test(message)) {
+    return "Camera đang được ứng dụng khác sử dụng. Hãy đóng Camera, Zoom hoặc ứng dụng gọi video rồi thử lại.";
+  }
+  if (name === "OverconstrainedError" || /constraint|overconstrained/i.test(message)) {
+    return "Camera không hỗ trợ cấu hình hình ảnh được yêu cầu. Hãy tải lại trang và thử lại.";
+  }
+  return `Không thể mở camera: ${message || "lỗi không xác định"}`;
+}
 
 function updateScannerStatus(message, type = "info") {
   const status = document.querySelector("#qr-scan-status");
@@ -22,16 +59,48 @@ function setScannerVisualState(state) {
   if (state) shell.classList.add(`is-${state}`);
 }
 
+function setScannerControls(disabled) {
+  ["#start-qr-scanner", "#start-barcode-scanner", "#stop-qr-scanner"].forEach((selector) => {
+    const button = document.querySelector(selector);
+    if (button) button.disabled = disabled;
+  });
+}
+
+async function switchScanner(mode) {
+  if (scannerTransition) return;
+  scannerTransition = true;
+  setScannerControls(true);
+  try {
+    await stopScanner(false);
+    await startScanner(mode);
+  } finally {
+    scannerTransition = false;
+    setScannerControls(false);
+  }
+}
+
+async function stopScannerFromUi() {
+  if (scannerTransition) return;
+  scannerTransition = true;
+  setScannerControls(true);
+  try {
+    await stopScanner();
+  } finally {
+    scannerTransition = false;
+    setScannerControls(false);
+  }
+}
+
 function extractBatchCode(decodedText) {
   const rawValue = String(decodedText || "").trim();
   if (rawValue && !rawValue.includes("://")) {
-    return rawValue.replace(/^FT-/i, "");
+    return normalizeBatchCode(rawValue.replace(/^FT-/i, ""));
   }
 
   try {
     const decodedUrl = new URL(rawValue, window.location.href);
     const batchCode = decodedUrl.searchParams.get("batch");
-    if (batchCode) return batchCode;
+    if (batchCode) return normalizeBatchCode(batchCode);
   } catch {
     // Giá trị không phải URL sẽ được báo không hợp lệ ở bên dưới.
   }
@@ -55,7 +124,7 @@ async function handleDecodedQr(decodedText) {
     updateScannerStatus(`Đã tải thành công lô ${batchCode}.`, "success");
   } catch (error) {
     setScannerVisualState("error");
-    updateScannerStatus(error?.message || "Không thể xử lý mã QR", "error");
+    updateScannerStatus(error?.message || "Không thể xử lý mã đã quét", "error");
     showError(error);
   } finally {
     window.setTimeout(() => { scanLocked = false; }, 1200);
@@ -108,14 +177,15 @@ function renderProductQr(batchCode) {
   if (!window.QRCode) throw new Error("Thư viện tạo mã QR chưa tải xong");
 
   const productUrl = getConsumerUrl(batchCode);
+  const qrPayload = PUBLIC_APP_URL ? productUrl : `FT-${batchCode}`;
   target.innerHTML = "";
   new QRCode(target, {
-    text: productUrl,
-    width: 220,
-    height: 220,
-    colorDark: "#10231a",
+    text: qrPayload,
+    width: 280,
+    height: 280,
+    colorDark: "#000000",
     colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H,
+    correctLevel: QRCode.CorrectLevel.M,
   });
 
   link.href = productUrl;
@@ -152,15 +222,15 @@ function renderProductBarcode(batchCode) {
   batchCode = normalizeBatchCode(batchCode);
   if (!window.JsBarcode) throw new Error("Thư viện tạo barcode chưa tải xong");
 
-  JsBarcode(target, `FT-${batchCode}`, {
+  JsBarcode(target, batchCode, {
     format: "CODE128",
-    width: 2,
-    height: 82,
-    margin: 14,
+    width: 3,
+    height: 110,
+    margin: 24,
     displayValue: true,
     font: "Manrope",
-    fontSize: 17,
-    lineColor: "#10231a",
+    fontSize: 20,
+    lineColor: "#000000",
     background: "#ffffff",
   });
   const downloadButton = document.querySelector("#download-barcode");
@@ -189,43 +259,70 @@ export function downloadProductBarcode(batchCode) {
   URL.revokeObjectURL(anchor.href);
 }
 
-async function startScanner() {
+export function clearGeneratedAssets() {
+  const qrTarget = document.querySelector("#qr-code");
+  const barcodeTarget = document.querySelector("#barcode-code");
+  if (qrTarget) qrTarget.innerHTML = "";
+  if (barcodeTarget) barcodeTarget.innerHTML = "";
+  document.querySelector("#qr-preview")?.classList.add("d-none");
+  document.querySelector("#barcode-preview")?.classList.add("d-none");
+  const productLabel = document.querySelector("#generated-product-id");
+  if (productLabel) productLabel.textContent = "Chưa tạo";
+}
+
+async function startScanner(mode = "qr") {
   if (!window.Html5Qrcode) throw new Error("Thư viện quét QR chưa tải xong");
 
   const region = document.querySelector("#qr-reader");
   const shell = document.querySelector("#qr-scanner-shell");
   if (!region) return;
   if (!window.isSecureContext && !["localhost", "127.0.0.1"].includes(window.location.hostname)) {
-    throw new Error("Trình duyệt chỉ cho phép mở camera trên HTTPS hoặc localhost. Hãy dùng chức năng chọn ảnh QR bên dưới.");
+    throw new Error("Trình duyệt chỉ cho phép mở camera trên HTTPS hoặc localhost. Hãy dùng chức năng chọn ảnh mã bên dưới.");
   }
 
   updateScannerStatus("Đang mở camera...", "info");
   shell?.classList.remove("d-none");
+  shell?.classList.toggle("barcode-mode", mode === "barcode");
   setScannerVisualState("scanning");
-  scanner = scanner || new Html5Qrcode("qr-reader");
+  scanner = getScanner();
 
-  await scanner.start(
-    { facingMode: "environment" },
-    {
-      fps: 15,
-      qrbox: (viewfinderWidth, viewfinderHeight) => ({
-        width: Math.floor(Math.min(viewfinderWidth * 0.82, 340)),
-        height: Math.floor(Math.min(viewfinderHeight * 0.58, 230)),
-      }),
-      aspectRatio: 1,
-      formatsToSupport: [
-        Html5QrcodeSupportedFormats.QR_CODE,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.CODE_39,
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-      ],
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-    },
-    (decodedText) => { void handleDecodedQr(decodedText); },
-    () => {}
-  );
-  updateScannerStatus("Camera đã sẵn sàng. Đưa mã QR vào giữa khung hình.", "scanning");
+  try {
+    const cameras = await Html5Qrcode.getCameras();
+    if (!cameras.length) throw new Error("Không tìm thấy camera");
+    const preferredCamera = cameras.find((camera) => /back|rear|environment|sau/i.test(camera.label)) || cameras[0];
+
+    const scanRegion = mode === "barcode"
+      ? (viewfinderWidth, viewfinderHeight) => ({
+          width: Math.floor(Math.min(viewfinderWidth * 0.94, 580)),
+          height: Math.floor(Math.min(viewfinderHeight * 0.36, 150)),
+        })
+      : (viewfinderWidth, viewfinderHeight) => {
+          const size = Math.floor(Math.min(viewfinderWidth * 0.72, viewfinderHeight * 0.72, 320));
+          return { width: size, height: size };
+        };
+
+    await scanner.start(
+      preferredCamera.id,
+      {
+        fps: mode === "barcode" ? 20 : 15,
+        qrbox: scanRegion,
+        disableFlip: false,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      },
+      (decodedText) => { void handleDecodedQr(decodedText); },
+      () => {}
+    );
+    const instruction = mode === "barcode"
+      ? "Giữ barcode nằm ngang, nhìn thấy đầy đủ hai đầu và đưa camera cách mã khoảng 15-25 cm."
+      : "Đưa toàn bộ QR vào giữa khung vuông.";
+    updateScannerStatus(`Camera đã sẵn sàng${preferredCamera.label ? `: ${preferredCamera.label}` : ""}. ${instruction}`, "scanning");
+  } catch (error) {
+    document.querySelector("#qr-scanner-shell")?.classList.add("d-none");
+    setScannerVisualState("error");
+    const friendlyError = new Error(cameraErrorMessage(error));
+    updateScannerStatus(friendlyError.message, "error");
+    throw friendlyError;
+  }
 }
 
 async function stopScanner(hideStatus = true) {
@@ -240,8 +337,8 @@ async function scanQrImage(file) {
   if (!window.Html5Qrcode) throw new Error("Thư viện quét QR chưa tải xong");
 
   await stopScanner(false);
-  updateScannerStatus("Đang đọc mã QR từ ảnh...", "info");
-  scanner = scanner || new Html5Qrcode("qr-reader");
+  updateScannerStatus("Đang đọc QR hoặc barcode từ ảnh...", "info");
+  scanner = getScanner();
   const decodedText = await scanner.scanFile(file, true);
   await handleDecodedQr(decodedText);
 }
@@ -315,19 +412,29 @@ export function initQrFeatures() {
 
   document.querySelector("#start-qr-scanner")?.addEventListener("click", async () => {
     try {
-      await startScanner();
+      await switchScanner("qr");
     } catch (error) {
       showError(error);
     }
   });
 
-  document.querySelector("#stop-qr-scanner")?.addEventListener("click", () => stopScanner());
+  document.querySelector("#start-barcode-scanner")?.addEventListener("click", async () => {
+    try {
+      await switchScanner("barcode");
+    } catch (error) {
+      showError(error);
+    }
+  });
+
+  document.querySelector("#stop-qr-scanner")?.addEventListener("click", () => {
+    stopScannerFromUi().catch(showError);
+  });
 
   document.querySelector("#qr-image-input")?.addEventListener("change", async (event) => {
     try {
       await scanQrImage(event.target.files?.[0]);
     } catch (error) {
-      updateScannerStatus(error?.message || "Không đọc được mã QR trong ảnh", "error");
+      updateScannerStatus(error?.message || "Không đọc được QR hoặc barcode trong ảnh", "error");
       showError(error);
     } finally {
       event.target.value = "";
@@ -336,4 +443,8 @@ export function initQrFeatures() {
 
   const batchCode = new URLSearchParams(window.location.search).get("batch");
   if (batchCode) loadProductFromQr(batchCode).catch(showError);
+
+  window.addEventListener("pagehide", () => {
+    if (scanner?.isScanning) scanner.stop().catch(() => {});
+  }, { once: true });
 }

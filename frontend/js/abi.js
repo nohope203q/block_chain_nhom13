@@ -345,6 +345,11 @@ export const CONTRACT_ABI = [
             "type": "string"
           },
           {
+            "internalType": "address",
+            "name": "distributor",
+            "type": "address"
+          },
+          {
             "internalType": "uint256",
             "name": "materialQuantity",
             "type": "uint256"
@@ -923,6 +928,11 @@ export const CONTRACT_ABI = [
         "internalType": "uint256",
         "name": "productId",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "manufacturer",
+        "type": "address"
       },
       {
         "internalType": "string",

@@ -22,7 +22,7 @@ export async function resolveBatchId(batchCode, contractInstance) {
   try {
     return await contract.getProductIdByBatchCode(batch);
   } catch (error) {
-    if (String(error?.shortMessage || error?.message || "").includes("Batch does not exist")) {
+    if (/Batch (does not exist|missing)/.test(String(error?.shortMessage || error?.message || ""))) {
       throw new Error(`Không tìm thấy lô "${batch}". Các mã mẫu: XCHL-2026-0612, ST25-HC-2606, ARA-DL-1206.`);
     }
     throw error;

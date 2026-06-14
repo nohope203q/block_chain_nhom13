@@ -138,6 +138,13 @@
                   required
                 />
               </div>
+              <div class="mb-3">
+                <label class="form-label">Nhà máy tiếp nhận nguyên liệu</label>
+                <select class="form-select" name="manufacturer" id="harvest-manufacturer" required>
+                  <option value="">Đang tải danh sách nhà máy...</option>
+                </select>
+                <div class="form-text">Chỉ nhà máy được chọn mới có thể dùng lô nguyên liệu này để tạo thành phẩm.</div>
+              </div>
               <div class="mb-4">
                 <label class="form-label">Ghi chú lô thu hoạch</label
                 ><textarea class="form-control" name="note" rows="3" minlength="5" maxlength="500" required></textarea>
@@ -199,7 +206,7 @@
                 <div class="barcode-heading">
                   <div>
                     <span class="eyebrow">BARCODE CODE128</span>
-                    <strong>Mã vạch dạng FT-MãLô</strong>
+                    <strong>Mã vạch chứa trực tiếp mã lô</strong>
                   </div>
                   <button id="download-barcode" type="button" class="btn btn-outline-success">
                     Tải barcode dạng SVG

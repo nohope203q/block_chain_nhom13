@@ -3,16 +3,17 @@ const { ethers } = require("hardhat");
 
 describe("FoodTraceability", function () {
   let contract;
-  let admin, farmer, manufacturer, distributor, distributorTwo, retailer, consumer, outsider;
+  let admin, farmer, manufacturer, manufacturerTwo, distributor, distributorTwo, retailer, consumer, outsider;
 
   beforeEach(async function () {
-    [admin, farmer, manufacturer, distributor, distributorTwo, retailer, consumer, outsider] = await ethers.getSigners();
+    [admin, farmer, manufacturer, manufacturerTwo, distributor, distributorTwo, retailer, consumer, outsider] = await ethers.getSigners();
     const Factory = await ethers.getContractFactory("FoodTraceability");
     contract = await Factory.deploy();
     await contract.waitForDeployment();
 
     await contract.addParticipant(farmer.address, "Green Farm", 1);
     await contract.addParticipant(manufacturer.address, "Fresh Foods", 2);
+    await contract.addParticipant(manufacturerTwo.address, "Other Factory", 2);
     await contract.addParticipant(distributor.address, "Fast Logistics", 3);
     await contract.addParticipant(distributorTwo.address, "Regional Logistics", 3);
     await contract.addParticipant(retailer.address, "City Market", 4);
@@ -28,10 +29,10 @@ describe("FoodTraceability", function () {
 
   async function createProcessedOutput() {
     const sourceId = await createProduct();
-    await contract.connect(farmer).harvestProduct(sourceId, "Harvested raw mango batch");
+    await contract.connect(farmer).harvestProduct(sourceId, manufacturer.address, "Harvested raw mango batch");
     await contract.connect(manufacturer).createProcessedProduct(sourceId, {
       batchCode: "MANGO-BOX-001", name: "Packed mango box",
-      description: "Selected and packed traceable mango", materialQuantity: 480,
+      description: "Selected and packed traceable mango", distributor: distributor.address, materialQuantity: 480,
       outputQuantity: 240, unit: "hộp 2 kg", expiryDate: 4102444800,
       note: "Washed, selected and packed into boxes",
     });
@@ -53,7 +54,7 @@ describe("FoodTraceability", function () {
   it("rejects participant management by a non-admin", async function () {
     await expect(
       contract.connect(outsider).addParticipant(outsider.address, "Invalid", 1)
-    ).to.be.revertedWith("Only admin can perform this action");
+    ).to.be.revertedWith("Admin only");
   });
 
   it("lets a farmer create a product and rejects other roles", async function () {
@@ -63,7 +64,7 @@ describe("FoodTraceability", function () {
 
     await expect(
       contract.connect(manufacturer).createProduct("INVALID-001", "Invalid", "Nowhere", "Invalid batch", 1, "kg", 1767225600, 4102444800)
-    ).to.be.revertedWith("Caller has incorrect role");
+    ).to.be.revertedWith("Wrong role");
   });
 
   it("uses a unique batch code as the public product identifier", async function () {
@@ -71,7 +72,7 @@ describe("FoodTraceability", function () {
 
     await expect(
       contract.connect(farmer).createProduct("XCHL-2026-001", "Another mango", "Tien Giang", "Duplicate batch", 20, "kg", 1767225600, 4102444800)
-    ).to.be.revertedWith("Batch code already exists");
+    ).to.be.revertedWith("Batch exists");
 
     expect(await contract.getProductIdByBatchCode("XCHL-2026-001")).to.equal(1n);
   });
@@ -103,7 +104,7 @@ describe("FoodTraceability", function () {
 
     await expect(
       contract.connect(distributor).shipProduct(id, retailer.address, "D01", 100, "Retailer", "Duplicate scan")
-    ).to.be.revertedWith("Distributor already joined this batch");
+    ).to.be.revertedWith("Distributor already joined");
 
     await contract.connect(distributorTwo).shipProduct(id, retailer.address, "D02", 105, "Retailer", "Regional hub to retailer");
     const history = await contract.getProductHistory(id);
@@ -115,14 +116,14 @@ describe("FoodTraceability", function () {
 
   it("rejects state updates from the wrong role or wrong state", async function () {
     const id = await createProduct();
-    await expect(contract.connect(distributor).harvestProduct(id, "Invalid"))
-      .to.be.revertedWith("Caller has incorrect role");
+    await expect(contract.connect(distributor).harvestProduct(id, manufacturer.address, "Invalid"))
+      .to.be.revertedWith("Wrong role");
     await expect(contract.connect(manufacturer).createProcessedProduct(id, {
-      batchCode: "OUTPUT-001", name: "Output product", description: "Processed output product",
+      batchCode: "OUTPUT-001", name: "Output product", description: "Processed output product", distributor: distributor.address,
       materialQuantity: 10, outputQuantity: 10, unit: "hộp", expiryDate: 4102444800, note: "Too early",
-    })).to.be.revertedWith("Source batch must be harvested");
+    })).to.be.revertedWith("Source not harvested");
     await expect(contract.connect(outsider).shipProduct(id, retailer.address, "D01", 100, "Retailer", "Invalid"))
-      .to.be.revertedWith("Participant is not active");
+      .to.be.revertedWith("Inactive participant");
   });
 
   it("requires the designated recipient to continue or receive a shipment", async function () {
@@ -131,32 +132,62 @@ describe("FoodTraceability", function () {
 
     await expect(
       contract.connect(retailer).receiveProduct(id, "Unexpected delivery")
-    ).to.be.revertedWith("Retailer is not the expected recipient");
+    ).to.be.revertedWith("Wrong retailer");
 
     await contract.connect(distributorTwo).shipProduct(id, retailer.address, "D02", 115, "City Market", "Final delivery");
     await expect(contract.connect(retailer).receiveProduct(id, "Seal and quantity verified"))
       .to.emit(contract, "StateChanged");
   });
 
+  it("requires Farmer and Manufacturer assignments before processing and distribution", async function () {
+    const sourceId = await createProduct();
+    await contract.connect(farmer).harvestProduct(sourceId, manufacturer.address, "Assigned raw batch to Fresh Foods");
+
+    await expect(
+      contract.connect(manufacturerTwo).createProcessedProduct(sourceId, {
+        batchCode: "WRONG-FACTORY-001", name: "Unauthorized output",
+        description: "Output attempted by another active factory", distributor: distributor.address,
+        materialQuantity: 10, outputQuantity: 5, unit: "hộp", expiryDate: 4102444800,
+        note: "Factory was not selected by the farmer",
+      })
+    ).to.be.revertedWith("Manufacturer not assigned");
+
+    await contract.connect(manufacturer).createProcessedProduct(sourceId, {
+      batchCode: "ASSIGNED-OUTPUT-001", name: "Assigned output",
+      description: "Output assigned to the selected distributor", distributor: distributor.address,
+      materialQuantity: 100, outputQuantity: 50, unit: "hộp", expiryDate: 4102444800,
+      note: "Processed by selected factory and assigned for delivery",
+    });
+
+    const output = await contract.getProduct(2n);
+    expect(output.pendingRecipient).to.equal(distributor.address);
+    await expect(
+      contract.connect(distributorTwo).shipProduct(2n, retailer.address, "D02", 100, "City Market", "Unauthorized first pickup")
+    ).to.be.revertedWith("Wrong distributor");
+    await expect(
+      contract.connect(distributor).shipProduct(2n, retailer.address, "D01", 100, "City Market", "Authorized first pickup")
+    ).to.emit(contract, "StateChanged");
+  });
+
   it("validates structured batch and transport data on-chain", async function () {
     await expect(
       contract.connect(farmer).createProduct("X", "Mango", "Tien Giang", "Valid description", 0, "kg", 100, 90)
-    ).to.be.revertedWith("Batch code length is invalid");
+    ).to.be.revertedWith("Invalid batch code");
 
     const id = await createProcessedOutput();
     await expect(
       contract.connect(distributor).shipProduct(id, distributorTwo.address, "D01", 700, "Regional hub", "Invalid temperature")
-    ).to.be.revertedWith("Temperature is out of range");
+    ).to.be.revertedWith("Invalid temperature");
   });
 
   it("creates processed output batches linked to harvested raw material", async function () {
     const sourceId = await createProduct();
-    await contract.connect(farmer).harvestProduct(sourceId, "Harvested raw mango batch");
+    await contract.connect(farmer).harvestProduct(sourceId, manufacturer.address, "Harvested raw mango batch");
 
     await expect(
       contract.connect(manufacturer).createProcessedProduct(sourceId, {
         batchCode: "MANGO-JAM-001", name: "Mango jam jar 250g",
-        description: "Processed mango jam from traceable raw mango", materialQuantity: 180,
+        description: "Processed mango jam from traceable raw mango", distributor: distributor.address, materialQuantity: 180,
         outputQuantity: 720, unit: "hũ 250 g", expiryDate: 4102444800,
         note: "Washed, cooked, pasteurized and packed into sealed jars",
       })
@@ -174,11 +205,11 @@ describe("FoodTraceability", function () {
 
     await expect(
       contract.connect(manufacturer).createProcessedProduct(sourceId, {
-        batchCode: "MANGO-DRIED-001", name: "Dried mango", description: "Dried mango output batch",
+        batchCode: "MANGO-DRIED-001", name: "Dried mango", description: "Dried mango output batch", distributor: distributor.address,
         materialQuantity: 301, outputQuantity: 120, unit: "gói 500 g", expiryDate: 4102444800,
         note: "Dried and packed for distribution",
       })
-    ).to.be.revertedWith("Material usage exceeds source quantity");
+    ).to.be.revertedWith("Material exceeds source");
   });
 
   it("requires a participant request and admin approval before recalling a batch", async function () {
@@ -186,7 +217,7 @@ describe("FoodTraceability", function () {
     const id = 1n;
     await expect(
       contract.connect(outsider).requestRecall(id, "Unverified outsider recall request")
-    ).to.be.revertedWith("Participant is not active");
+    ).to.be.revertedWith("Inactive participant");
 
     await expect(
       contract.connect(farmer).requestRecall(id, "Laboratory result detected unsafe pesticide residue")
@@ -212,7 +243,7 @@ describe("FoodTraceability", function () {
     expect(await contract.getPendingRecallProductIds()).to.deep.equal([]);
     await expect(
       contract.connect(distributor).shipProduct(outputId, retailer.address, "D01", 100, "City Market", "Attempt after recall")
-    ).to.be.revertedWith("Product is not ready for distribution");
+    ).to.be.revertedWith("Not distributable");
   });
 
   it("allows admin to reject a recall request without stopping the batch", async function () {
@@ -224,7 +255,7 @@ describe("FoodTraceability", function () {
 
     expect((await contract.getProduct(id)).state).to.equal(0);
     expect((await contract.getRecallRequest(id)).status).to.equal(3);
-    await expect(contract.connect(farmer).harvestProduct(id, "Harvest continues after rejection"))
+    await expect(contract.connect(farmer).harvestProduct(id, manufacturer.address, "Harvest continues after rejection"))
       .to.emit(contract, "StateChanged");
   });
 
@@ -252,17 +283,17 @@ describe("FoodTraceability", function () {
       "EXPIRED-001", "Expired Mango", "Tien Giang", "Expired product test batch",
       10, "kg", now - 2000, now + 100
     );
-    await contract.connect(farmer).harvestProduct(1n, "Harvested before expiry");
+    await contract.connect(farmer).harvestProduct(1n, manufacturer.address, "Harvested before expiry");
     await contract.connect(manufacturer).createProcessedProduct(1n, {
       batchCode: "EXPIRED-BOX-001", name: "Expired mango box",
-      description: "Expired processed mango product", materialQuantity: 10,
+      description: "Expired processed mango product", distributor: distributor.address, materialQuantity: 10,
       outputQuantity: 5, unit: "hộp 2 kg", expiryDate: now - 1000, note: "Packed before expiry",
     });
     const id = 2n;
     await contract.connect(distributor).shipProduct(id, retailer.address, "D01", 100, "City Market", "Delivered after expiry");
     await contract.connect(retailer).receiveProduct(id, "Received expired batch");
     await expect(contract.connect(retailer).setForSale(id, 10000, "Invalid expired listing"))
-      .to.be.revertedWith("Expired batch cannot be listed for sale");
+      .to.be.revertedWith("Batch expired");
   });
 
   it("only accepts one feedback from each wallet for a batch", async function () {
@@ -270,7 +301,7 @@ describe("FoodTraceability", function () {
     await contract.connect(consumer).addFeedback(id, 5, "Very fresh");
     await expect(
       contract.connect(consumer).addFeedback(id, 4, "Second review")
-    ).to.be.revertedWith("Feedback already submitted");
+    ).to.be.revertedWith("Feedback submitted");
 
     await contract.connect(outsider).addFeedback(id, 4, "Good quality");
 
@@ -279,6 +310,6 @@ describe("FoodTraceability", function () {
     const average = items.reduce((total, item) => total + Number(item.rating), 0) / items.length;
     expect(average).to.equal(4.5);
     await expect(contract.connect(distributorTwo).addFeedback(id, 6, "Invalid"))
-      .to.be.revertedWith("Rating must be between 1 and 5");
+      .to.be.revertedWith("Invalid rating");
   });
 });

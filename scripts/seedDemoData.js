@@ -50,11 +50,16 @@ async function createCompletedProduct(contract, actors, data) {
     toTimestamp(data.expiryDate)
   )).wait();
   const sourceProductId = await contract.getProductIdByBatchCode(sourceBatchCode);
-  await (await contract.connect(farmer).harvestProduct(sourceProductId, data.harvestNote)).wait();
+  await (await contract.connect(farmer).harvestProduct(
+    sourceProductId,
+    manufacturer.address,
+    data.harvestNote
+  )).wait();
   await (await contract.connect(manufacturer).createProcessedProduct(sourceProductId, {
     batchCode: data.batchCode,
     name: data.name,
     description: data.description,
+    distributor: distributorA.address,
     materialQuantity: data.materialQuantity,
     outputQuantity: data.quantity,
     unit: data.unit,

@@ -2,6 +2,8 @@ import { getReadContract } from "./contract.js";
 import { getCurrentAccount } from "./wallet.js";
 import { formatRole } from "./product.js";
 
+let dashboardRequestId = 0;
+
 function getAccessGate() {
   let gate = document.querySelector("#role-access-gate");
   if (gate) return gate;
@@ -28,6 +30,7 @@ function setAccessState(authorized, title, message) {
 }
 
 export async function loadDashboard() {
+  const requestId = ++dashboardRequestId;
   const totalEl = document.querySelector("[data-total-products]");
   if (!totalEl) return true;
 
@@ -47,6 +50,7 @@ export async function loadDashboard() {
   try {
     const contract = await getReadContract();
     const participant = await contract.getParticipant(account);
+    if (requestId !== dashboardRequestId || getCurrentAccount().toLowerCase() !== account.toLowerCase()) return null;
     const roleNumber = Number(participant.role);
     const role = participant.isActive ? formatRole(roleNumber) : "Chưa được cấp quyền";
     const authorized = participant.isActive && (
@@ -68,11 +72,13 @@ export async function loadDashboard() {
     setAccessState(true, "", "");
     const ids = await contract.getAllProductIds();
     const products = await Promise.all(ids.map((id) => contract.getProduct(id)));
+    if (requestId !== dashboardRequestId || getCurrentAccount().toLowerCase() !== account.toLowerCase()) return null;
     totalEl.textContent = products.filter((item) => item.parentProductId > 0n).length;
     const saleEl = document.querySelector("[data-sale-products]");
     if (saleEl) saleEl.textContent = products.filter((item) => Number(item.state) === 5).length;
     return true;
   } catch (error) {
+    if (requestId !== dashboardRequestId || getCurrentAccount().toLowerCase() !== account.toLowerCase()) return null;
     totalEl.textContent = "--";
     if (walletStatusEl) walletStatusEl.textContent = "Không đọc được vai trò";
     setAccessState(false, "Không thể xác minh quyền", "Không đọc được thông tin vai trò từ blockchain. Hãy kiểm tra Hardhat node và thử lại.");

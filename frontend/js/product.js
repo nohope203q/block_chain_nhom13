@@ -61,6 +61,7 @@ export function renderProduct(product, shippingRecords = [], outputIds = [], rec
     ["Nông dân", product.farmer], ["Nhà máy", product.manufacturer],
     ...product.distributors.map((address, index) => [`Nhà phân phối ${index + 1}`, address]),
     ["Bán lẻ", product.retailer],
+    ["Đối tác tiếp theo", product.pendingRecipient],
   ].filter(([, address]) => address !== ethers.ZeroAddress);
 
   const now = Math.floor(Date.now() / 1000);

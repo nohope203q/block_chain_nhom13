@@ -6,6 +6,15 @@ let signer;
 let currentAccount = "";
 const listeners = new Set();
 
+async function notifyWalletChanged() {
+  const results = await Promise.allSettled(
+    [...listeners].map((listener) => listener(currentAccount))
+  );
+  results.forEach((result) => {
+    if (result.status === "rejected") console.error("Không thể đồng bộ dữ liệu ví:", result.reason);
+  });
+}
+
 export async function connectWallet() {
   if (!window.ethereum) throw new Error("Vui lòng cài MetaMask để sử dụng DApp");
   await ensureLocalNetwork();
@@ -14,7 +23,7 @@ export async function connectWallet() {
   signer = await provider.getSigner();
   currentAccount = await signer.getAddress();
   updateWalletUI();
-  listeners.forEach((listener) => listener(currentAccount));
+  await notifyWalletChanged();
   return currentAccount;
 }
 
@@ -66,7 +75,7 @@ if (window.ethereum) {
       }
 
       updateWalletUI();
-      listeners.forEach((listener) => listener(currentAccount));
+      await notifyWalletChanged();
     } catch (error) {
       currentAccount = "";
       signer = null;

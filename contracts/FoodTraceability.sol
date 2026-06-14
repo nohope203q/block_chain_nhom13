@@ -78,6 +78,7 @@ contract FoodTraceability {
         string batchCode;
         string name;
         string description;
+        address distributor;
         uint256 materialQuantity;
         uint256 outputQuantity;
         string unit;
@@ -113,19 +114,19 @@ contract FoodTraceability {
     event ProductTransformed(uint256 indexed sourceProductId, uint256 indexed outputProductId, uint256 quantity);
 
     modifier onlyAdmin() {
-        require(msg.sender == admin, "Only admin can perform this action");
+        require(msg.sender == admin, "Admin only");
         _;
     }
 
     modifier onlyRole(Role role) {
         Participant memory participant = participants[msg.sender];
-        require(participant.isActive, "Participant is not active");
-        require(participant.role == role, "Caller has incorrect role");
+        require(participant.isActive, "Inactive participant");
+        require(participant.role == role, "Wrong role");
         _;
     }
 
     modifier productExists(uint256 productId) {
-        require(products[productId].exists, "Product does not exist");
+        require(products[productId].exists, "Product missing");
         _;
     }
 
@@ -136,18 +137,18 @@ contract FoodTraceability {
     }
 
     function addParticipant(address account, string memory name, Role role) external onlyAdmin {
-        require(account != address(0), "Participant address is invalid");
-        require(bytes(name).length > 0, "Participant name is required");
-        require(role != Role.Admin && role != Role.Consumer, "Role cannot be assigned by admin");
-        require(!participants[account].isActive, "Participant is already active");
+        require(account != address(0), "Invalid participant");
+        require(bytes(name).length > 0, "Name required");
+        require(role != Role.Admin && role != Role.Consumer, "Role forbidden");
+        require(!participants[account].isActive, "Already active");
 
         participants[account] = Participant(account, name, role, true);
         emit ParticipantAdded(account, name, role);
     }
 
     function deactivateParticipant(address account) external onlyAdmin {
-        require(account != admin, "Admin cannot be deactivated");
-        require(participants[account].isActive, "Participant is not active");
+        require(account != admin, "Admin protected");
+        require(participants[account].isActive, "Inactive participant");
         participants[account].isActive = false;
         emit ParticipantDeactivated(account);
     }
@@ -162,16 +163,16 @@ contract FoodTraceability {
         uint256 harvestDate,
         uint256 expiryDate
     ) external onlyRole(Role.Farmer) returns (uint256) {
-        _requireText(batchCode, 3, 40, "Batch code length is invalid");
-        _requireText(name, 3, 120, "Product name length is invalid");
-        _requireText(origin, 3, 200, "Product origin length is invalid");
-        _requireText(description, 10, 500, "Product description length is invalid");
-        require(quantity > 0, "Quantity must be greater than zero");
-        _requireText(unit, 1, 20, "Product unit length is invalid");
-        require(harvestDate > 0, "Harvest date is required");
-        require(expiryDate > harvestDate, "Expiry date must be after harvest date");
+        _requireText(batchCode, 3, 40, "Invalid batch code");
+        _requireText(name, 3, 120, "Invalid product name");
+        _requireText(origin, 3, 200, "Invalid origin");
+        _requireText(description, 10, 500, "Invalid description");
+        require(quantity > 0, "Quantity required");
+        _requireText(unit, 1, 20, "Invalid unit");
+        require(harvestDate > 0, "Harvest date required");
+        require(expiryDate > harvestDate, "Invalid dates");
         bytes32 batchHash = keccak256(bytes(batchCode));
-        require(productIdByBatchHash[batchHash] == 0, "Batch code already exists");
+        require(productIdByBatchHash[batchHash] == 0, "Batch exists");
 
         uint256 productId = nextProductId++;
         products[productId] = Product({
@@ -210,19 +211,22 @@ contract FoodTraceability {
         ProcessingInput calldata input
     ) external onlyRole(Role.Manufacturer) productExists(sourceProductId) returns (uint256) {
         Product storage source = products[sourceProductId];
-        require(source.state == State.Harvested, "Source batch must be harvested");
+        require(source.state == State.Harvested, "Source not harvested");
+        require(source.pendingRecipient == msg.sender, "Manufacturer not assigned");
         require(recallRequests[sourceProductId].status != RecallStatus.Pending, "Recall pending");
-        require(input.materialQuantity > 0, "Material quantity must be greater than zero");
-        require(input.outputQuantity > 0, "Output quantity must be greater than zero");
-        require(materialUsedQuantity[sourceProductId] + input.materialQuantity <= source.quantity, "Material usage exceeds source quantity");
-        require(input.expiryDate > source.harvestDate, "Expiry date must be after harvest date");
-        _requireText(input.batchCode, 3, 40, "Batch code length is invalid");
-        _requireText(input.name, 3, 120, "Product name length is invalid");
-        _requireText(input.description, 10, 500, "Product description length is invalid");
-        _requireText(input.unit, 1, 20, "Product unit length is invalid");
-        _requireText(input.note, 5, 500, "Processing note length is invalid");
+        Participant memory distributor = participants[input.distributor];
+        require(distributor.isActive && distributor.role == Role.Distributor, "Invalid distributor");
+        require(input.materialQuantity > 0, "Material required");
+        require(input.outputQuantity > 0, "Output required");
+        require(materialUsedQuantity[sourceProductId] + input.materialQuantity <= source.quantity, "Material exceeds source");
+        require(input.expiryDate > source.harvestDate, "Invalid expiry");
+        _requireText(input.batchCode, 3, 40, "Invalid batch code");
+        _requireText(input.name, 3, 120, "Invalid product name");
+        _requireText(input.description, 10, 500, "Invalid description");
+        _requireText(input.unit, 1, 20, "Invalid unit");
+        _requireText(input.note, 5, 500, "Invalid process note");
         bytes32 outputHash = keccak256(bytes(input.batchCode));
-        require(productIdByBatchHash[outputHash] == 0, "Batch code already exists");
+        require(productIdByBatchHash[outputHash] == 0, "Batch exists");
 
         materialUsedQuantity[sourceProductId] += input.materialQuantity;
         uint256 outputProductId = nextProductId++;
@@ -243,7 +247,7 @@ contract FoodTraceability {
             harvestDate: source.harvestDate,
             expiryDate: input.expiryDate,
             parentProductId: sourceProductId,
-            pendingRecipient: address(0),
+            pendingRecipient: input.distributor,
             price: 0,
             recallReason: "",
             recalledAt: 0,
@@ -264,11 +268,11 @@ contract FoodTraceability {
         external productExists(productId)
     {
         Product storage product = products[productId];
-        require(product.state != State.Recalled, "Batch is already recalled");
-        require(participants[msg.sender].isActive, "Participant is not active");
-        require(_isProductParticipant(productId, msg.sender), "Caller is not involved in this batch");
-        require(recallRequests[productId].status != RecallStatus.Pending, "Recall request is already pending");
-        _requireText(reason, 10, 500, "Recall reason length is invalid");
+        require(product.state != State.Recalled, "Already recalled");
+        require(participants[msg.sender].isActive, "Inactive participant");
+        require(_isProductParticipant(productId, msg.sender), "Not batch participant");
+        require(recallRequests[productId].status != RecallStatus.Pending, "Recall already pending");
+        _requireText(reason, 10, 500, "Invalid recall reason");
         recallRequests[productId] = RecallRequest({
             productId: productId,
             requester: msg.sender,
@@ -286,8 +290,8 @@ contract FoodTraceability {
         external onlyAdmin productExists(productId)
     {
         RecallRequest storage request = recallRequests[productId];
-        require(request.status == RecallStatus.Pending, "No pending recall request");
-        _requireText(adminNote, 5, 500, "Admin note length is invalid");
+        require(request.status == RecallStatus.Pending, "No pending recall");
+        _requireText(adminNote, 5, 500, "Invalid admin note");
         request.status = approve ? RecallStatus.Approved : RecallStatus.Rejected;
         request.adminNote = adminNote;
         request.resolvedAt = block.timestamp;
@@ -307,12 +311,15 @@ contract FoodTraceability {
         emit RecallReviewed(productId, msg.sender, approve, adminNote);
     }
 
-    function harvestProduct(uint256 productId, string memory note)
+    function harvestProduct(uint256 productId, address manufacturer, string memory note)
         external onlyRole(Role.Farmer) productExists(productId)
     {
         Product storage product = products[productId];
-        require(product.farmer == msg.sender, "Only the product farmer can harvest");
-        _requireText(note, 5, 500, "Harvest note length is invalid");
+        require(product.farmer == msg.sender, "Wrong farmer");
+        Participant memory target = participants[manufacturer];
+        require(target.isActive && target.role == Role.Manufacturer, "Invalid manufacturer");
+        _requireText(note, 5, 500, "Invalid harvest note");
+        product.pendingRecipient = manufacturer;
         _changeState(productId, State.Created, State.Harvested, unicode"Thu hoạch sản phẩm", note);
     }
 
@@ -334,23 +341,21 @@ contract FoodTraceability {
         );
         require(
             product.state == State.Processed || product.state == State.Shipped,
-            "Product is not ready for distribution"
+            "Not distributable"
         );
-        require(!distributorJoined[productId][msg.sender], "Distributor already joined this batch");
-        if (product.state == State.Shipped) {
-            require(product.pendingRecipient == msg.sender, "Distributor is not the expected recipient");
-        }
+        require(!distributorJoined[productId][msg.sender], "Distributor already joined");
+        require(product.pendingRecipient == msg.sender, "Wrong distributor");
         Participant memory recipientParticipant = participants[recipient];
-        require(recipientParticipant.isActive, "Recipient is not an active participant");
+        require(recipientParticipant.isActive, "Inactive recipient");
         require(
             recipientParticipant.role == Role.Distributor || recipientParticipant.role == Role.Retailer,
-            "Recipient must be a distributor or retailer"
+            "Invalid recipient role"
         );
-        require(recipient != msg.sender, "Recipient must be different from distributor");
-        _requireText(vehicleCode, 2, 40, "Vehicle code length is invalid");
-        _requireText(destination, 3, 200, "Destination length is invalid");
-        _requireText(note, 5, 500, "Shipping note length is invalid");
-        require(temperatureX10 >= -500 && temperatureX10 <= 600, "Temperature is out of range");
+        require(recipient != msg.sender, "Self recipient");
+        _requireText(vehicleCode, 2, 40, "Invalid vehicle");
+        _requireText(destination, 3, 200, "Invalid destination");
+        _requireText(note, 5, 500, "Invalid shipping note");
+        require(temperatureX10 >= -500 && temperatureX10 <= 600, "Invalid temperature");
         distributorJoined[productId][msg.sender] = true;
         product.distributors.push(msg.sender);
         product.pendingRecipient = recipient;
@@ -371,13 +376,13 @@ contract FoodTraceability {
         external onlyRole(Role.Retailer) productExists(productId)
     {
         Product storage product = products[productId];
-        _requireText(note, 5, 500, "Receiving note length is invalid");
+        _requireText(note, 5, 500, "Invalid receiving note");
         require(
             recallRequests[productId].status != RecallStatus.Pending
                 && (product.parentProductId == 0 || recallRequests[product.parentProductId].status != RecallStatus.Pending),
             "Recall pending"
         );
-        require(product.pendingRecipient == msg.sender, "Retailer is not the expected recipient");
+        require(product.pendingRecipient == msg.sender, "Wrong retailer");
         product.retailer = msg.sender;
         product.pendingRecipient = address(0);
         _changeState(productId, State.Shipped, State.Received, unicode"Nhận sản phẩm", note);
@@ -392,10 +397,10 @@ contract FoodTraceability {
                 && (product.parentProductId == 0 || recallRequests[product.parentProductId].status != RecallStatus.Pending),
             "Recall pending"
         );
-        require(product.retailer == msg.sender, "Only the receiving retailer can list product");
-        require(price > 0, "Sale price must be greater than zero");
-        require(block.timestamp < product.expiryDate, "Expired batch cannot be listed for sale");
-        _requireText(note, 5, 500, "Sale note length is invalid");
+        require(product.retailer == msg.sender, "Wrong retailer");
+        require(price > 0, "Price required");
+        require(block.timestamp < product.expiryDate, "Batch expired");
+        _requireText(note, 5, 500, "Invalid sale note");
         product.price = price;
         _changeState(productId, State.Received, State.ForSale, unicode"Niêm yết sản phẩm", note);
         emit ProductForSale(productId, price, msg.sender);
@@ -404,9 +409,9 @@ contract FoodTraceability {
     function addFeedback(uint256 productId, uint8 rating, string memory comment)
         external productExists(productId)
     {
-        require(!feedbackSubmitted[productId][msg.sender], "Feedback already submitted");
-        require(rating >= 1 && rating <= 5, "Rating must be between 1 and 5");
-        _requireText(comment, 3, 500, "Feedback comment length is invalid");
+        require(!feedbackSubmitted[productId][msg.sender], "Feedback submitted");
+        require(rating >= 1 && rating <= 5, "Invalid rating");
+        _requireText(comment, 3, 500, "Invalid feedback");
         feedbackSubmitted[productId][msg.sender] = true;
         feedbacks[productId].push(Feedback(productId, msg.sender, rating, comment, block.timestamp));
         emit FeedbackAdded(productId, msg.sender, rating);
@@ -418,7 +423,7 @@ contract FoodTraceability {
 
     function getProductIdByBatchCode(string memory batchCode) external view returns (uint256) {
         uint256 productId = productIdByBatchHash[keccak256(bytes(batchCode))];
-        require(productId != 0, "Batch does not exist");
+        require(productId != 0, "Batch missing");
         return productId;
     }
 
@@ -492,7 +497,7 @@ contract FoodTraceability {
         string memory note
     ) private {
         Product storage product = products[productId];
-        require(product.state == expected, "Product is not in the required state");
+        require(product.state == expected, "Wrong state");
         product.state = next;
         _recordHistory(productId, action, next, note);
         emit StateChanged(productId, next, msg.sender, note);

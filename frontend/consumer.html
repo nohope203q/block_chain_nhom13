@@ -59,17 +59,20 @@
             <div>
               <span class="eyebrow">QUÉT NHANH</span>
               <h2>Quét QR hoặc barcode trên bao bì</h2>
-              <p>Hướng camera vào mã QR, CODE128 hoặc EAN để tự động tải hồ sơ truy xuất.</p>
+              <p>Chọn đúng chế độ QR hoặc barcode CODE128 để tự động tải hồ sơ truy xuất.</p>
             </div>
             <div class="d-flex flex-wrap gap-2">
               <button id="start-qr-scanner" type="button" class="btn btn-primary">
-                Mở camera quét mã
+                Quét QR
+              </button>
+              <button id="start-barcode-scanner" type="button" class="btn btn-outline-light">
+                Quét barcode
               </button>
               <button id="stop-qr-scanner" type="button" class="btn btn-outline-secondary">
                 Dừng camera
               </button>
               <label for="qr-image-input" class="btn btn-outline-light mb-0">
-                Chọn ảnh QR
+                Chọn ảnh mã
               </label>
               <input id="qr-image-input" type="file" accept="image/*" class="d-none" />
             </div>
@@ -86,7 +89,7 @@
               <i class="scanner-corner corner-bl"></i>
               <i class="scanner-corner corner-br"></i>
               <span class="scanner-line"></span>
-              <span class="scanner-target-text">Đặt QR hoặc barcode vào trong khung</span>
+              <span class="scanner-target-text">Đặt mã vào trong khung</span>
             </div>
             <div class="scanner-detected">
               <span class="scanner-check">✓</span>

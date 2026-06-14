@@ -35,11 +35,12 @@ export async function createProduct(batchCode, name, origin, description, quanti
   return receipt;
 }
 
-export async function harvestProduct(batchCode, note) {
+export async function harvestProduct(batchCode, manufacturer, note) {
+  if (!ethers.isAddress(manufacturer)) throw new Error("Vui lòng chọn nhà máy tiếp nhận hợp lệ");
   const contract = await getWriteContract();
   const productId = await resolveBatchId(batchCode, contract);
   return runTransaction(
-    () => contract.harvestProduct(productId, note.trim()),
-    "Đã cập nhật trạng thái thu hoạch"
+    () => contract.harvestProduct(productId, manufacturer, note.trim()),
+    "Đã thu hoạch và chỉ định nhà máy tiếp nhận"
   );
 }

@@ -3,7 +3,7 @@ import { getCurrentAccount } from "./wallet.js";
 
 const roleForms = [
   { selector: "#harvest-form", states: [0], owner: "farmer" },
-  { selector: "#create-processed-product-form", name: "sourceBatchCode", states: [1], requiresBalance: true },
+  { selector: "#create-processed-product-form", name: "sourceBatchCode", states: [1], owner: "pendingRecipient", requiresBalance: true },
   { selector: "#ship-form", states: [2, 3], custom: canDistribute },
   { selector: "#receive-form", states: [3], owner: "pendingRecipient" },
   { selector: "#sale-form", states: [4], owner: "retailer" },
@@ -16,7 +16,7 @@ const roleForms = [
 const normalize = (value) => String(value || "").toLowerCase();
 
 function canDistribute(product, account) {
-  return Number(product.state) === 2 || normalize(product.pendingRecipient) === account;
+  return normalize(product.pendingRecipient) === account;
 }
 
 function isParticipant(product, account) {
@@ -37,6 +37,20 @@ function replaceWithSelect(form, fieldName) {
   return select;
 }
 
+export function clearBatchOptions(message = "Hãy kết nối đúng ví để xem lô hàng") {
+  roleForms.forEach((config) => {
+    const form = document.querySelector(config.selector);
+    if (!form) return;
+    const select = replaceWithSelect(form, config.name || "batchCode");
+    if (!select) return;
+    select.innerHTML = "";
+    const option = document.createElement("option");
+    option.value = "";
+    option.textContent = message;
+    select.appendChild(option);
+  });
+}
+
 export async function loadBatchOptions() {
   const activeConfigs = roleForms.filter(({ selector }) => document.querySelector(selector));
   if (!activeConfigs.length) return;
@@ -52,8 +66,14 @@ export async function loadBatchOptions() {
     balances.set(product.id.toString(), Number(balance.remaining));
   }));
   const account = normalize(getCurrentAccount());
+  if (!account) {
+    clearBatchOptions();
+    return;
+  }
+  if (normalize(getCurrentAccount()) !== account) return;
 
   for (const config of activeConfigs) {
+    if (normalize(getCurrentAccount()) !== account) return;
     const form = document.querySelector(config.selector);
     const select = replaceWithSelect(form, config.name || "batchCode");
     if (!select) continue;
@@ -64,7 +84,6 @@ export async function loadBatchOptions() {
       if (recallById.get(product.id.toString()) === 1) return false;
       if (product.parentProductId > 0n && recallById.get(product.parentProductId.toString()) === 1) return false;
       if (config.requiresBalance && balances.get(product.id.toString()) <= 0) return false;
-      if (!account) return false;
       if (config.custom) return config.custom(product, account);
       return !config.owner || normalize(product[config.owner]) === account;
     });

@@ -31,8 +31,8 @@
 | Vai trò | Chức năng |
 |---|---|
 | Admin | Cấp/vô hiệu hóa tài khoản, duyệt hoặc từ chối thu hồi |
-| Farmer | Tạo lô nguyên liệu thô, xác nhận thu hoạch |
-| Manufacturer | Chọn nguyên liệu và tạo lô thành phẩm mới |
+| Farmer | Tạo lô nguyên liệu, xác nhận thu hoạch và chỉ định Nhà máy tiếp nhận |
+| Manufacturer | Chỉ xử lý nguyên liệu được giao, tạo thành phẩm và chỉ định Nhà phân phối đầu tiên |
 | Distributor | Ghi nhận từng chặng vận chuyển và chỉ định đối tác nhận |
 | Retailer | Xác nhận nhận hàng, niêm yết giá, tạo QR/barcode |
 | Consumer | Tra cứu timeline và gửi đánh giá |
@@ -43,9 +43,10 @@ Frontend được chia thành trang riêng cho từng vai trò. Khi chưa kết 
 
 ```text
 Farmer tạo lô nguyên liệu
-→ Farmer xác nhận thu hoạch
-→ Manufacturer tạo lô thành phẩm từ nguyên liệu
-→ Distributor bàn giao qua một hoặc nhiều chặng
+→ Farmer xác nhận thu hoạch và chỉ định Manufacturer
+→ Manufacturer tạo thành phẩm và chỉ định Distributor đầu tiên
+→ Distributor được chỉ định nhận chuyến đầu
+→ Các Distributor chỉ định bên nhận ở từng chặng tiếp theo
 → Retailer xác nhận nhận hàng
 → Retailer niêm yết giá VND
 → Consumer quét mã và xem timeline
@@ -80,6 +81,8 @@ Phiên bản hiện tại hỗ trợ một lô nguyên liệu chính cho mỗi l
 - Dropdown lọc theo trạng thái, vai trò, ví liên quan và yêu cầu thu hồi.
 - Lô nguyên liệu đã dùng hết không còn xuất hiện để chế biến.
 - Đối tác nhận hàng được chọn theo tên doanh nghiệp; địa chỉ ví được dùng tự động phía dưới.
+- Manufacturer chỉ nhìn thấy nguyên liệu mà Farmer đã chỉ định cho đúng ví của mình.
+- Distributor chỉ nhìn thấy thành phẩm hoặc chuyến hàng đang chờ chính ví đó tiếp nhận.
 
 ## 6. Quy trình thu hồi
 
@@ -110,8 +113,9 @@ Phiên bản hiện tại hỗ trợ một lô nguyên liệu chính cho mỗi l
 Consumer có thể:
 
 - Nhập hoặc quét mã lô.
-- Quét QR trực tiếp bằng camera hoặc tải ảnh mã lên.
-- Quét barcode CODE128.
+- Quét QR và barcode CODE128 bằng hai chế độ camera riêng, hoặc tải ảnh mã lên.
+- QR local chứa `FT-MÃ-LÔ`; barcode CODE128 chứa trực tiếp mã lô để giảm độ dài và tăng khả năng nhận diện.
+- Farmer và Retailer có thể tạo lại tem từ lô thuộc đúng ví của mình mà không tạo giao dịch blockchain mới.
 - Xem thông tin lô, nguồn gốc, hạn sử dụng, giá VND và trạng thái thu hồi.
 - Xem lịch sử nguyên liệu và thành phẩm trên cùng timeline.
 - Xem từng chặng vận chuyển, phương tiện, nhiệt độ và ví giao/nhận.
@@ -148,8 +152,8 @@ block_chain_nhom13/
 | `addParticipant()` | Cấp vai trò cho ví |
 | `deactivateParticipant()` | Vô hiệu hóa participant |
 | `createProduct()` | Farmer tạo lô nguyên liệu |
-| `harvestProduct()` | Farmer xác nhận thu hoạch |
-| `createProcessedProduct()` | Manufacturer tạo thành phẩm từ nguyên liệu |
+| `harvestProduct()` | Farmer xác nhận thu hoạch và chỉ định Manufacturer |
+| `createProcessedProduct()` | Manufacturer tạo thành phẩm và chỉ định Distributor đầu tiên |
 | `shipProduct()` | Distributor ghi chặng vận chuyển |
 | `receiveProduct()` | Retailer xác nhận nhận hàng |
 | `setForSale()` | Retailer niêm yết giá VND |
@@ -191,6 +195,8 @@ Script deploy tự động cập nhật:
 - `frontend/js/deployment.js`
 - `frontend/js/abi.js`
 - `CONTRACT_ADDRESS` trong `.env`
+
+Không đưa `.env` lên Git. File `.env.example` chỉ mô tả biến cấu hình và không chứa khóa bí mật.
 
 ### Tạo dữ liệu demo
 
@@ -260,6 +266,7 @@ Bộ test kiểm tra:
 - Quyền Farmer và mã lô duy nhất.
 - Tạo thành phẩm, đơn vị và cân bằng nguyên liệu.
 - Chuỗi trạng thái qua nhiều Distributor.
+- Bắt buộc đúng Manufacturer và Distributor được bên trước chỉ định.
 - Đúng ví nhận ở từng chặng.
 - Validation dữ liệu và nhiệt độ.
 - Yêu cầu, từ chối và phê duyệt thu hồi.
@@ -271,7 +278,7 @@ Bộ test kiểm tra:
 Kết quả gần nhất:
 
 ```text
-15 passing
+16 passing
 ```
 
 ## 15. Giới hạn bảo mật và phạm vi
@@ -284,7 +291,7 @@ Kết quả gần nhất:
 - Hardhat Localhost chỉ phù hợp phát triển và trình diễn.
 - Camera trên điện thoại thường yêu cầu frontend chạy qua HTTPS.
 - Chưa có thanh toán, trạng thái Sold hoặc xác minh người mua trước khi feedback.
-- Contract đang gần giới hạn kích thước bytecode EVM; phát triển lớn hơn nên tách thành nhiều contract hoặc thư viện.
+- Contract có bytecode `24.574/24.576 byte`, chỉ còn 2 byte trước giới hạn EVM; phát triển lớn hơn phải tách thành nhiều contract hoặc thư viện.
 
 ## 16. Hướng phát triển
 
