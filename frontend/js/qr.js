@@ -3,6 +3,7 @@ import { loadFeedbacks } from "./feedback.js";
 import { showError, showToast } from "./ui.js";
 import { PUBLIC_APP_URL } from "./config.js";
 import { getReadContract, resolveBatchId } from "./contract.js";
+import { getCurrentAccount } from "./wallet.js";
 
 let scanner;
 let scanLocked = false;
@@ -246,6 +247,32 @@ async function scanQrImage(file) {
 }
 
 export function initQrFeatures() {
+  const farmerLabelForm = document.querySelector("#farmer-label-generate-form");
+  farmerLabelForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const batchCode = new FormData(farmerLabelForm).get("batchCode");
+      const normalized = await verifyBatchExists(batchCode);
+      const contract = await getReadContract();
+      const productId = await resolveBatchId(normalized, contract);
+      const product = await contract.getProduct(productId);
+      const account = String(getCurrentAccount() || "").toLowerCase();
+      if (!account) throw new Error("Hãy kết nối ví Farmer trước khi tạo lại tem");
+      if (String(product.farmer).toLowerCase() !== account) {
+        throw new Error("Bạn chỉ có thể tạo lại tem cho lô do chính ví Farmer này đăng ký");
+      }
+
+      renderProductQr(normalized);
+      renderProductBarcode(normalized);
+
+      const productLabel = document.querySelector("#generated-product-id");
+      if (productLabel) productLabel.textContent = `${normalized} · ID #${productId}`;
+      document.querySelector("#farmer-qr-result")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (error) {
+      showError(error);
+    }
+  });
+
   const generateForm = document.querySelector("#qr-generate-form");
   generateForm?.addEventListener("submit", async (event) => {
     event.preventDefault();

@@ -161,6 +161,23 @@
                     <span>Mã lô · Blockchain ID</span>
                     <strong id="generated-product-id">Chưa tạo</strong>
                   </div>
+                  <form id="farmer-label-generate-form" class="mt-4">
+                    <label class="form-label">Tạo lại tem cho lô đã có</label>
+                    <div class="input-group">
+                      <input
+                        class="form-control"
+                        name="batchCode"
+                        placeholder="Chọn lô hàng của bạn"
+                        required
+                      />
+                      <button class="btn btn-primary" type="submit">
+                        Tạo lại QR và barcode
+                      </button>
+                    </div>
+                    <div class="form-text">
+                      Mã được tạo lại từ dữ liệu blockchain nên vẫn dẫn đến đúng hồ sơ lô hàng cũ.
+                    </div>
+                  </form>
                 </div>
                 <div class="col-lg-6">
                   <div id="qr-preview" class="qr-preview d-none">

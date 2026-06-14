@@ -54,12 +54,26 @@ function updateWalletUI() {
 }
 
 if (window.ethereum) {
-  window.ethereum.on("accountsChanged", (accounts) => {
-    currentAccount = accounts[0] || "";
-    signer = null;
-    provider = null;
-    updateWalletUI();
-    listeners.forEach((listener) => listener(currentAccount));
+  window.ethereum.on("accountsChanged", async (accounts) => {
+    try {
+      currentAccount = accounts[0] || "";
+      signer = null;
+      provider = null;
+
+      if (currentAccount) {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner(currentAccount);
+      }
+
+      updateWalletUI();
+      listeners.forEach((listener) => listener(currentAccount));
+    } catch (error) {
+      currentAccount = "";
+      signer = null;
+      provider = null;
+      updateWalletUI();
+      showError(error);
+    }
   });
   window.ethereum.on("chainChanged", () => window.location.reload());
 }

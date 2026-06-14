@@ -49,13 +49,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.querySelector("#feedback-form")?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     try {
       const batchCode = data.get("batchCode");
       const success = await addFeedback(batchCode, data.get("rating"), data.get("comment"));
       if (success) {
+        form.reset();
         const product = await searchProduct(batchCode);
-        event.currentTarget.reset();
         if (product) await loadFeedbacks(product.id);
       }
     } catch (error) { showError(error); }

@@ -9,6 +9,7 @@ const roleForms = [
   { selector: "#sale-form", states: [4], owner: "retailer" },
   { selector: "#qr-generate-form", states: [5], owner: "retailer" },
   { selector: "#barcode-generate-form", states: [5], owner: "retailer" },
+  { selector: "#farmer-label-generate-form", states: [0, 1, 2, 3, 4, 5, 6], owner: "farmer" },
   { selector: "#request-recall-form", states: [0, 1, 2, 3, 4, 5], custom: isParticipant },
 ];
 
@@ -63,7 +64,7 @@ export async function loadBatchOptions() {
       if (recallById.get(product.id.toString()) === 1) return false;
       if (product.parentProductId > 0n && recallById.get(product.parentProductId.toString()) === 1) return false;
       if (config.requiresBalance && balances.get(product.id.toString()) <= 0) return false;
-      if (!account) return true;
+      if (!account) return false;
       if (config.custom) return config.custom(product, account);
       return !config.owner || normalize(product[config.owner]) === account;
     });

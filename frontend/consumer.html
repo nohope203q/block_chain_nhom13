@@ -109,41 +109,54 @@
               </div>
             </div>
             <div class="col-lg-5">
-              <div class="panel mb-4">
-                <h2>Đánh giá từ cộng đồng</h2>
-                <div id="average-rating" class="rating-summary mb-3"></div>
-                <div id="feedback-list"></div>
+              <div class="panel feedback-panel">
+                <div class="feedback-panel-header">
+                  <span class="eyebrow">Ý KIẾN NGƯỜI TIÊU DÙNG</span>
+                  <h2>Đánh giá sản phẩm</h2>
+                </div>
+
+                <div id="average-rating" class="rating-summary"></div>
+
+                <form id="feedback-form" class="feedback-form-section">
+                  <h3>Chia sẻ trải nghiệm của bạn</h3>
+                  <div class="mb-3">
+                    <label class="form-label">Mã lô hàng</label>
+                    <input
+                      class="form-control"
+                      name="batchCode"
+                      readonly
+                      required
+                    />
+                    <div class="form-text">
+                      Mã được lấy tự động từ sản phẩm vừa tra cứu hoặc quét.
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Số sao</label>
+                    <select class="form-select" name="rating">
+                      <option value="5">5 - Xuất sắc</option>
+                      <option value="4">4 - Tốt</option>
+                      <option value="3">3 - Bình thường</option>
+                      <option value="2">2 - Chưa tốt</option>
+                      <option value="1">1 - Không hài lòng</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label class="form-label">Nhận xét</label>
+                    <textarea
+                      class="form-control"
+                      name="comment"
+                      rows="3"
+                    ></textarea>
+                  </div>
+                  <button class="btn btn-primary w-100">Gửi đánh giá</button>
+                </form>
+
+                <div class="community-feedback-section">
+                  <h3>Đánh giá từ cộng đồng</h3>
+                  <div id="feedback-list" class="feedback-list"></div>
+                </div>
               </div>
-              <form id="feedback-form" class="panel">
-                <h2>Gửi đánh giá</h2>
-                <div class="mb-3">
-                  <label class="form-label">Mã lô hàng</label
-                  ><input
-                    class="form-control"
-                    name="batchCode"
-                    required
-                  />
-                </div>
-                <div class="mb-3">
-                  <label class="form-label">Số sao</label
-                  ><select class="form-select" name="rating">
-                    <option value="5">5 - Xuất sắc</option>
-                    <option value="4">4 - Tốt</option>
-                    <option value="3">3 - Bình thường</option>
-                    <option value="2">2 - Chưa tốt</option>
-                    <option value="1">1 - Không hài lòng</option>
-                  </select>
-                </div>
-                <div class="mb-4">
-                  <label class="form-label">Nhận xét</label
-                  ><textarea
-                    class="form-control"
-                    name="comment"
-                    rows="3"
-                  ></textarea>
-                </div>
-                <button class="btn btn-primary">Gửi đánh giá</button>
-              </form>
             </div>
           </div>
         </div>

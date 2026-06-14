@@ -38,12 +38,20 @@ export async function searchProduct(batchCode) {
     }
     renderProduct(product, shippingRecords, outputIds, recallRequest);
     renderTimeline(traceHistory);
+    syncFeedbackBatchCode(product.batchCode);
     document.querySelector("#product-results")?.classList.remove("d-none");
     return product;
   } catch (error) {
     showError(error);
     return null;
   }
+}
+
+function syncFeedbackBatchCode(batchCode) {
+  const input = document.querySelector('#feedback-form [name="batchCode"]');
+  if (!input) return;
+  input.value = batchCode;
+  input.readOnly = true;
 }
 
 export function renderProduct(product, shippingRecords = [], outputIds = [], recallRequest = null) {
