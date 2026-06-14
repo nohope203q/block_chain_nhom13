@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>FoodTraceability</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/timeline.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container">
+        <a class="navbar-brand" href="index.html"
+          ><span class="brand-mark">FT</span>FoodTraceability</a
+        ><button
+          class="navbar-toggler"
+          data-bs-toggle="collapse"
+          data-bs-target="#nav"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div id="nav" class="collapse navbar-collapse">
+          <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+            <a class="nav-link active" href="index.html">Trang chủ</a
+            ><a class="nav-link" href="consumer.html">Truy xuất</a
+            ><a class="btn wallet-btn ms-lg-3" data-connect-wallet
+              >Kết nối ví</a
+            >
+          </div>
+        </div>
+      </div>
+    </nav>
+    <header class="hero">
+      <div class="container">
+        <span class="eyebrow">MINH BẠCH TỪ NÔNG TRẠI ĐẾN BÀN ĂN</span>
+        <h1>Mỗi sản phẩm đều có một hành trình đáng tin.</h1>
+        <p class="mt-4">
+          Theo dõi từng mốc trong chuỗi cung ứng thực phẩm bằng dữ liệu
+          blockchain không thể sửa đổi.
+        </p>
+        <div class="d-flex gap-2 mt-4">
+          <a class="btn btn-primary btn-lg" href="consumer.html"
+            >Truy xuất sản phẩm</a
+          ><a class="btn btn-outline-light btn-lg" href="#roles"
+            >Chọn vai trò</a
+          >
+        </div>
+      </div>
+    </header>
+    <main>
+      <section id="roles" class="section-space">
+        <div class="container">
+          <span class="eyebrow">CÔNG VIỆC THEO VAI TRÒ</span>
+          <h2 class="fw-bold mb-4">Mỗi người một bảng điều khiển riêng</h2>
+          <div class="role-grid">
+            <a class="role-card" href="admin.html"
+              ><span class="role-number">01 / QUẢN TRỊ</span>
+              <h3>Admin</h3>
+              <p>Cấp quyền và quản lý thành viên.</p></a
+            ><a class="role-card" href="farmer.html"
+              ><span class="role-number">02 / SẢN XUẤT</span>
+              <h3>Farmer</h3>
+              <p>Tạo sản phẩm và ghi nhận thu hoạch.</p></a
+            ><a class="role-card" href="manufacturer.html"
+              ><span class="role-number">03 / CHẾ BIẾN</span>
+              <h3>Manufacturer</h3>
+              <p>Xác nhận công đoạn xử lý, đóng gói.</p></a
+            ><a class="role-card" href="distributor.html"
+              ><span class="role-number">04 / VẬN CHUYỂN</span>
+              <h3>Distributor</h3>
+              <p>Ghi nhận xuất kho và vận chuyển.</p></a
+            ><a class="role-card" href="retailer.html"
+              ><span class="role-number">05 / BÁN LẺ</span>
+              <h3>Retailer</h3>
+              <p>Nhận hàng và niêm yết giá bán.</p></a
+            ><a class="role-card" href="consumer.html"
+              ><span class="role-number">06 / TIÊU DÙNG</span>
+              <h3>Consumer</h3>
+              <p>Truy xuất lịch sử và gửi đánh giá.</p></a
+            >
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer>
+      <div class="container d-flex justify-content-between">
+        <span>FoodTraceability DApp</span><span>Vận hành bởi Ethereum</span>
+      </div>
+    </footer>
+    <div
+      id="toast-container"
+      class="toast-container position-fixed top-0 end-0 p-3"
+    ></div>
+    <div id="loading-overlay" class="d-none">
+      <div class="loading-box">
+        <div class="spinner-border text-light mb-3"></div>
+        <br /><span>Đang xử lý...</span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
+

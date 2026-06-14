@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Farmer | FoodTraceability</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+  </head>
+  <body data-required-role="1" data-required-role-name="Nông dân">
+    <nav class="navbar navbar-dark">
+      <div class="container">
+        <a class="navbar-brand" href="index.html"
+          ><span class="brand-mark">FT</span>FoodTraceability</a
+        >
+        <div class="d-flex align-items-center gap-3">
+          <span class="role-badge" data-current-role>Farmer</span
+          ><button class="btn wallet-btn" data-connect-wallet>
+            Kết nối ví
+          </button>
+        </div>
+      </div>
+    </nav>
+    <header class="page-header">
+      <div class="container">
+        <span class="eyebrow">BẢNG ĐIỀU KHIỂN NÔNG DÂN</span>
+        <h1>Bắt đầu hành trình sản phẩm</h1>
+        <p class="text-muted mb-0">
+          Tạo hồ sơ nông sản và ghi nhận thời điểm thu hoạch.
+        </p>
+      </div>
+    </header>
+    <section class="dashboard-strip">
+      <div class="container">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Lô thành phẩm</span><strong data-total-products>--</strong>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Đang bán</span><strong data-sale-products>--</strong>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Trạng thái ví</span
+              ><strong data-wallet-status>Chưa kết nối</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <main class="section-space">
+      <div class="container">
+        <div class="row g-4">
+          <div class="col-lg-6 d-flex">
+            <form id="create-product-form" class="panel w-100 h-100">
+              <h2>Tạo sản phẩm mới</h2>
+              <div class="mb-3">
+                <label class="form-label">Mã lô hàng</label
+                ><input
+                  class="form-control"
+                  name="batchCode"
+                  placeholder="Ví dụ: XCHL-2026-0612"
+                  minlength="3"
+                  maxlength="40"
+                  pattern="[A-Za-z0-9-]+"
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Tên sản phẩm</label
+                ><input class="form-control" name="name" minlength="3" maxlength="120" required />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Nguồn gốc</label
+                ><input class="form-control" name="origin" minlength="3" maxlength="200" required />
+              </div>
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Số lượng</label>
+                  <input type="number" class="form-control" name="quantity" min="1" step="1" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Đơn vị</label>
+                  <select class="form-select" name="unit" required>
+                    <option value="kg">kg</option>
+                    <option value="lít">lít</option>
+                    <option value="con">con</option>
+                    <option value="thùng">thùng</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Ngày dự kiến thu hoạch</label>
+                  <input type="date" class="form-control" name="harvestDate" required />
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label">Hạn sử dụng</label>
+                  <input type="date" class="form-control" name="expiryDate" required />
+                </div>
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Mô tả</label
+                ><textarea
+                  class="form-control"
+                  name="description"
+                  rows="4"
+                  minlength="10"
+                  maxlength="500"
+                  required
+                ></textarea>
+              </div>
+              <button class="btn btn-primary">Tạo sản phẩm</button>
+            </form>
+          </div>
+          <div class="col-lg-6 d-flex">
+            <form id="harvest-form" class="panel w-100 h-100">
+              <h2>Xác nhận thu hoạch</h2>
+              <p class="text-muted">
+                Xác nhận lô đã được thu hoạch thực tế và ghi thời điểm xác nhận lên blockchain.
+              </p>
+              <div class="mb-3">
+                <label class="form-label">Mã lô hàng</label
+                ><input
+                  class="form-control"
+                  name="batchCode"
+                  required
+                />
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Ghi chú lô thu hoạch</label
+                ><textarea class="form-control" name="note" rows="3" minlength="5" maxlength="500" required></textarea>
+              </div>
+              <button class="btn btn-primary">Xác nhận đã thu hoạch</button>
+            </form>
+          </div>
+        </div>
+        <div id="farmer-qr-result" class="row g-4 mt-1">
+          <div class="col-12">
+            <div class="panel farmer-label-panel">
+              <div class="row align-items-center g-4">
+                <div class="col-lg-6">
+                  <span class="eyebrow">TEM TRUY XUẤT ĐẦU CHUỖI</span>
+                  <h2>QR và barcode được tạo ngay khi đăng ký sản phẩm</h2>
+                  <p class="text-muted mb-0">
+                    Sau khi giao dịch tạo sản phẩm thành công, mã QR và barcode sẽ tự xuất hiện tại đây.
+                    Nông dân có thể tải xuống, in tem và gắn lên lô hàng từ bước đầu tiên.
+                  </p>
+                  <div class="farmer-label-note mt-4">
+                    <span>Mã lô · Blockchain ID</span>
+                    <strong id="generated-product-id">Chưa tạo</strong>
+                  </div>
+                </div>
+                <div class="col-lg-6">
+                  <div id="qr-preview" class="qr-preview d-none">
+                    <div id="qr-code" class="qr-code"></div>
+                    <div class="qr-preview-info">
+                      <strong>Mã QR truy xuất sản phẩm</strong>
+                      <a id="qr-product-link" href="#" target="_blank" rel="noopener"></a>
+                      <button id="download-qr" type="button" class="btn btn-outline-success mt-3">
+                        Tải mã QR dạng PNG
+                      </button>
+                    </div>
+                  </div>
+                  <div class="qr-empty-state">
+                    Tạo sản phẩm mới để hệ thống sinh QR và barcode tự động.
+                  </div>
+                </div>
+              </div>
+              <div id="barcode-preview" class="barcode-preview d-none mt-4">
+                <div class="barcode-heading">
+                  <div>
+                    <span class="eyebrow">BARCODE CODE128</span>
+                    <strong>Mã vạch dạng FT-MãLô</strong>
+                  </div>
+                  <button id="download-barcode" type="button" class="btn btn-outline-success">
+                    Tải barcode dạng SVG
+                  </button>
+                </div>
+                <svg id="barcode-code"></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row g-4 mt-1">
+          <div class="col-12">
+            <form id="request-recall-form" class="panel recall-request-form">
+              <h2>Gửi yêu cầu thu hồi</h2>
+              <p class="text-muted">Dùng khi phát hiện vấn đề về vùng trồng, thu hoạch hoặc thông tin ban đầu của lô.</p>
+              <label class="form-label">Mã lô</label>
+              <input class="form-control mb-3" name="batchCode" required />
+              <label class="form-label">Lý do và bằng chứng</label>
+              <textarea class="form-control mb-3" name="reason" rows="3" minlength="10" maxlength="500" required></textarea>
+              <button class="btn btn-outline-danger">Gửi đến Admin</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer>
+      <div class="container"><a href="index.html">← Về trang chủ</a></div>
+    </footer>
+    <div
+      id="toast-container"
+      class="toast-container position-fixed top-0 end-0 p-3"
+    ></div>
+    <div id="loading-overlay" class="d-none">
+      <div class="loading-box">
+        <div class="spinner-border mb-3"></div>
+        <br /><span>Đang xử lý...</span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

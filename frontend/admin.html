@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin | FoodTraceability</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+  </head>
+  <body data-required-role="0" data-required-role-name="Quản trị viên">
+    <nav class="navbar navbar-expand-lg navbar-dark">
+      <div class="container">
+        <a class="navbar-brand" href="index.html"
+          ><span class="brand-mark">FT</span>FoodTraceability</a
+        >
+        <div class="ms-auto d-flex align-items-center gap-3">
+          <span class="role-badge" data-current-role>Admin</span
+          ><button class="btn wallet-btn" data-connect-wallet>
+            Kết nối ví
+          </button>
+        </div>
+      </div>
+    </nav>
+    <header class="page-header">
+      <div class="container">
+        <span class="eyebrow">BẢNG ĐIỀU KHIỂN ADMIN</span>
+        <h1>Quản lý thành viên chuỗi cung ứng</h1>
+        <p class="text-muted mb-0">
+          Cấp và thu hồi quyền cho các địa chỉ ví tham gia.
+        </p>
+      </div>
+    </header>
+    <section class="dashboard-strip">
+      <div class="container">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Lô thành phẩm</span><strong data-total-products>--</strong>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Đang bán</span><strong data-sale-products>--</strong>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Trạng thái ví</span
+              ><strong data-wallet-status>Chưa kết nối</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <main class="section-space">
+      <div class="container">
+        <div class="row g-4">
+          <div class="col-lg-6 d-flex">
+            <form id="add-participant-form" class="panel w-100 h-100">
+              <h2>Cấp quyền thành viên</h2>
+              <div class="mb-3">
+                <label class="form-label">Địa chỉ ví</label
+                ><input
+                  class="form-control"
+                  name="account"
+                  placeholder="0x..."
+                  required
+                />
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Tên đơn vị</label
+                ><input class="form-control" name="name" required />
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Vai trò</label
+                ><select class="form-select" name="role">
+                  <option value="1">Farmer</option>
+                  <option value="2">Manufacturer</option>
+                  <option value="3">Distributor</option>
+                  <option value="4">Retailer</option>
+                </select>
+              </div>
+              <button class="btn btn-primary">Cấp quyền trên blockchain</button>
+            </form>
+          </div>
+          <div class="col-lg-6 d-flex">
+            <form id="deactivate-form" class="panel w-100 h-100">
+              <h2>Vô hiệu hóa thành viên</h2>
+              <div class="mb-4">
+                <label class="form-label">Địa chỉ ví</label
+                ><input
+                  class="form-control"
+                  name="account"
+                  placeholder="0x..."
+                  required
+                />
+              </div>
+              <button class="btn btn-outline-danger">Vô hiệu hóa</button>
+            </form>
+          </div>
+        </div>
+        <div class="row g-4 mt-1">
+          <div class="col-12">
+            <div class="panel recall-panel">
+              <h2>Yêu cầu thu hồi đang chờ</h2>
+              <p class="text-muted">Admin kiểm tra thông tin do đơn vị trong chuỗi gửi trước khi quyết định.</p>
+              <div id="pending-recall-list" class="recall-request-list"></div>
+              <div class="row g-4 mt-2">
+                <div class="col-lg-6">
+                  <form id="approve-recall-form" class="recall-review-box approve">
+                    <h3>Phê duyệt thu hồi</h3>
+                    <select class="form-select mb-3" name="batchCode" data-recall-batch-select required>
+                      <option value="">Chọn yêu cầu đang chờ</option>
+                    </select>
+                    <textarea class="form-control mb-3" name="note" rows="2" minlength="5" maxlength="500" placeholder="Kết luận xác minh và hướng xử lý" required></textarea>
+                    <button class="btn btn-outline-danger w-100">Phê duyệt và thu hồi</button>
+                  </form>
+                </div>
+                <div class="col-lg-6">
+                  <form id="reject-recall-form" class="recall-review-box reject">
+                    <h3>Từ chối yêu cầu</h3>
+                    <select class="form-select mb-3" name="batchCode" data-recall-batch-select required>
+                      <option value="">Chọn yêu cầu đang chờ</option>
+                    </select>
+                    <textarea class="form-control mb-3" name="note" rows="2" minlength="5" maxlength="500" placeholder="Lý do từ chối yêu cầu" required></textarea>
+                    <button class="btn btn-outline-secondary w-100">Từ chối yêu cầu</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    <footer>
+      <div class="container"><a href="index.html">← Về trang chủ</a></div>
+    </footer>
+    <div
+      id="toast-container"
+      class="toast-container position-fixed top-0 end-0 p-3"
+    ></div>
+    <div id="loading-overlay" class="d-none">
+      <div class="loading-box">
+        <div class="spinner-border mb-3"></div>
+        <br /><span>Đang xử lý...</span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Manufacturer | FoodTraceability</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+    <link rel="stylesheet" href="css/responsive.css" />
+  </head>
+  <body data-required-role="2" data-required-role-name="Nhà máy">
+    <nav class="navbar navbar-dark">
+      <div class="container">
+        <a class="navbar-brand" href="index.html"
+          ><span class="brand-mark">FT</span>FoodTraceability</a
+        >
+        <div class="d-flex align-items-center gap-3">
+          <span class="role-badge" data-current-role>Manufacturer</span
+          ><button class="btn wallet-btn" data-connect-wallet>
+            Kết nối ví
+          </button>
+        </div>
+      </div>
+    </nav>
+    <header class="page-header">
+      <div class="container">
+        <span class="eyebrow">BẢNG ĐIỀU KHIỂN NHÀ MÁY</span>
+        <h1>Ghi nhận công đoạn chế biến</h1>
+        <p class="text-muted mb-0">
+          Xác thực việc xử lý và đóng gói sản phẩm đã thu hoạch.
+        </p>
+      </div>
+    </header>
+    <section class="dashboard-strip">
+      <div class="container">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Lô thành phẩm</span><strong data-total-products>--</strong>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Đang bán</span><strong data-sale-products>--</strong>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <span>Trạng thái ví</span
+              ><strong data-wallet-status>Chưa kết nối</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <main class="section-space">
+      <div class="container">
+        <div class="row g-4">
+          <div class="col-12">
+            <form id="create-processed-product-form" class="panel w-100 h-100">
+              <span class="eyebrow">CHUYỂN ĐỔI NGUYÊN LIỆU</span>
+              <h2>Tạo lô thành phẩm mới</h2>
+              <p class="text-muted">Lô thành phẩm có mã riêng nhưng vẫn truy ngược được lô nguyên liệu.</p>
+              <div class="row g-3">
+                <div class="col-md-4"><label class="form-label">Mã lô nguyên liệu</label><input class="form-control" name="sourceBatchCode" required /></div>
+                <div class="col-md-4"><label class="form-label">Mã lô thành phẩm mới</label><input class="form-control" name="outputBatchCode" pattern="[A-Za-z0-9-]+" minlength="3" maxlength="40" required /></div>
+                <div class="col-md-4"><label class="form-label">Tên thành phẩm</label><input class="form-control" name="name" minlength="3" maxlength="120" required /></div>
+                <div class="col-md-3"><label class="form-label">Lượng nguyên liệu sử dụng</label><input type="number" class="form-control" name="materialQuantity" min="1" required /></div>
+                <div class="col-md-3"><label class="form-label">Số thành phẩm đầu ra</label><input type="number" class="form-control" name="quantity" min="1" required /></div>
+                <div class="col-md-3"><label class="form-label">Đơn vị thành phẩm</label><select class="form-select" name="unit" required><option value="hộp">hộp</option><option value="chai">chai</option><option value="túi">túi</option><option value="gói">gói</option><option value="thùng">thùng</option><option value="kg">kg</option><option value="lít">lít</option></select></div>
+                <div class="col-md-3"><label class="form-label">Hạn sử dụng</label><input type="date" class="form-control" name="expiryDate" required /></div>
+                <div class="col-12"><label class="form-label">Mô tả thành phẩm</label><input class="form-control" name="description" minlength="10" maxlength="500" required /></div>
+                <div class="col-12"><label class="form-label">Quy trình và ghi chú chế biến</label><textarea class="form-control" name="note" rows="3" minlength="5" maxlength="500" required></textarea></div>
+              </div>
+              <button class="btn btn-primary mt-3">Tạo lô thành phẩm</button>
+            </form>
+          </div>
+        </div>
+        <div class="row mt-4"><div class="col-12"><form id="request-recall-form" class="panel recall-request-form"><h2>Gửi yêu cầu thu hồi</h2><p class="text-muted">Báo cáo sự cố chế biến, kiểm nghiệm hoặc đóng gói để Admin xác minh.</p><label class="form-label">Mã lô</label><input class="form-control mb-3" name="batchCode" required /><label class="form-label">Lý do và bằng chứng</label><textarea class="form-control mb-3" name="reason" rows="3" minlength="10" maxlength="500" required></textarea><button class="btn btn-outline-danger">Gửi đến Admin</button></form></div></div>
+      </div>
+    </main>
+    <footer>
+      <div class="container"><a href="index.html">← Về trang chủ</a></div>
+    </footer>
+    <div
+      id="toast-container"
+      class="toast-container position-fixed top-0 end-0 p-3"
+    ></div>
+    <div id="loading-overlay" class="d-none">
+      <div class="loading-box">
+        <div class="spinner-border mb-3"></div>
+        <br /><span>Đang xử lý...</span>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
