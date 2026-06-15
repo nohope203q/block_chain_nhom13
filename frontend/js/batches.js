@@ -23,6 +23,7 @@ function isParticipant(product, account) {
   return normalize(product.farmer) === account
     || normalize(product.manufacturer) === account
     || normalize(product.retailer) === account
+    || normalize(product.pendingRecipient) === account
     || product.distributors.some((address) => normalize(address) === account);
 }
 

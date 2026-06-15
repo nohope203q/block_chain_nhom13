@@ -213,7 +213,7 @@ contract FoodTraceability {
         Product storage source = products[sourceProductId];
         require(source.state == State.Harvested, "Source not harvested");
         require(source.pendingRecipient == msg.sender, "Manufacturer not assigned");
-        require(recallRequests[sourceProductId].status != RecallStatus.Pending, "Recall pending");
+        _requireNoPendingRecall(sourceProductId);
         Participant memory distributor = participants[input.distributor];
         require(distributor.isActive && distributor.role == Role.Distributor, "Invalid distributor");
         require(input.materialQuantity > 0, "Material required");
@@ -316,6 +316,7 @@ contract FoodTraceability {
     {
         Product storage product = products[productId];
         require(product.farmer == msg.sender, "Wrong farmer");
+        _requireNoPendingRecall(productId);
         Participant memory target = participants[manufacturer];
         require(target.isActive && target.role == Role.Manufacturer, "Invalid manufacturer");
         _requireText(note, 5, 500, "Invalid harvest note");
@@ -334,11 +335,7 @@ contract FoodTraceability {
         external onlyRole(Role.Distributor) productExists(productId)
     {
         Product storage product = products[productId];
-        require(
-            recallRequests[productId].status != RecallStatus.Pending
-                && (product.parentProductId == 0 || recallRequests[product.parentProductId].status != RecallStatus.Pending),
-            "Recall pending"
-        );
+        _requireNoPendingRecall(productId);
         require(
             product.state == State.Processed || product.state == State.Shipped,
             "Not distributable"
@@ -377,11 +374,7 @@ contract FoodTraceability {
     {
         Product storage product = products[productId];
         _requireText(note, 5, 500, "Invalid receiving note");
-        require(
-            recallRequests[productId].status != RecallStatus.Pending
-                && (product.parentProductId == 0 || recallRequests[product.parentProductId].status != RecallStatus.Pending),
-            "Recall pending"
-        );
+        _requireNoPendingRecall(productId);
         require(product.pendingRecipient == msg.sender, "Wrong retailer");
         product.retailer = msg.sender;
         product.pendingRecipient = address(0);
@@ -392,11 +385,7 @@ contract FoodTraceability {
         external onlyRole(Role.Retailer) productExists(productId)
     {
         Product storage product = products[productId];
-        require(
-            recallRequests[productId].status != RecallStatus.Pending
-                && (product.parentProductId == 0 || recallRequests[product.parentProductId].status != RecallStatus.Pending),
-            "Recall pending"
-        );
+        _requireNoPendingRecall(productId);
         require(product.retailer == msg.sender, "Wrong retailer");
         require(price > 0, "Price required");
         require(block.timestamp < product.expiryDate, "Batch expired");
@@ -409,6 +398,7 @@ contract FoodTraceability {
     function addFeedback(uint256 productId, uint8 rating, string memory comment)
         external productExists(productId)
     {
+        require(products[productId].state == State.ForSale, "Not for sale");
         require(!feedbackSubmitted[productId][msg.sender], "Feedback submitted");
         require(rating >= 1 && rating <= 5, "Invalid rating");
         _requireText(comment, 3, 500, "Invalid feedback");
@@ -505,6 +495,13 @@ contract FoodTraceability {
 
     function _markRecalled(uint256 productId, string memory reason, string memory note) private {
         Product storage product = products[productId];
+        RecallRequest storage request = recallRequests[productId];
+        if (request.status == RecallStatus.Pending) {
+            request.status = RecallStatus.Approved;
+            request.adminNote = note;
+            request.resolvedAt = block.timestamp;
+            emit RecallReviewed(productId, msg.sender, true, note);
+        }
         product.state = State.Recalled;
         product.recallReason = reason;
         product.recalledAt = block.timestamp;
@@ -513,6 +510,15 @@ contract FoodTraceability {
         _recordHistory(productId, unicode"Phê duyệt thu hồi", State.Recalled, note);
         emit StateChanged(productId, State.Recalled, msg.sender, note);
         emit ProductRecalled(productId, msg.sender, reason);
+    }
+
+    function _requireNoPendingRecall(uint256 productId) private view {
+        Product storage product = products[productId];
+        require(
+            recallRequests[productId].status != RecallStatus.Pending
+                && (product.parentProductId == 0 || recallRequests[product.parentProductId].status != RecallStatus.Pending),
+            "Recall pending"
+        );
     }
 
     function _recordHistory(
@@ -539,6 +545,7 @@ contract FoodTraceability {
         return account == product.farmer
             || account == product.manufacturer
             || account == product.retailer
+            || account == product.pendingRecipient
             || distributorJoined[productId][account];
     }
 

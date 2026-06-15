@@ -246,6 +246,18 @@ describe("FoodTraceability", function () {
     ).to.be.revertedWith("Not distributable");
   });
 
+  it("resolves a pending output request when its source batch is recalled", async function () {
+    const outputId = await createProcessedOutput();
+    await contract.connect(distributor).requestRecall(outputId, "Output packaging may contain contaminated source material");
+    await contract.connect(farmer).requestRecall(1n, "Source test confirmed contamination across processed outputs");
+
+    await contract.reviewRecall(1n, true, "Recall the source and every linked output batch");
+
+    expect((await contract.getProduct(outputId)).state).to.equal(6);
+    expect((await contract.getRecallRequest(outputId)).status).to.equal(2);
+    expect(await contract.getPendingRecallProductIds()).to.deep.equal([]);
+  });
+
   it("allows admin to reject a recall request without stopping the batch", async function () {
     const id = await createProduct();
     await contract.connect(farmer).requestRecall(id, "Suspected issue requires additional verification");
@@ -257,6 +269,29 @@ describe("FoodTraceability", function () {
     expect((await contract.getRecallRequest(id)).status).to.equal(3);
     await expect(contract.connect(farmer).harvestProduct(id, manufacturer.address, "Harvest continues after rejection"))
       .to.emit(contract, "StateChanged");
+  });
+
+  it("blocks harvesting while a recall request is pending", async function () {
+    const id = await createProduct();
+    await contract.connect(farmer).requestRecall(id, "Suspected contamination requires verification before harvest");
+
+    await expect(
+      contract.connect(farmer).harvestProduct(id, manufacturer.address, "Attempt to harvest pending batch")
+    ).to.be.revertedWith("Recall pending");
+
+    await contract.reviewRecall(id, false, "Inspection confirms the crop remains safe for harvest");
+    await expect(
+      contract.connect(farmer).harvestProduct(id, manufacturer.address, "Harvest resumes after rejection")
+    ).to.emit(contract, "StateChanged");
+  });
+
+  it("allows the designated recipient to report a batch before continuing the flow", async function () {
+    const id = await createProduct();
+    await contract.connect(farmer).harvestProduct(id, manufacturer.address, "Assigned for processing inspection");
+
+    await expect(
+      contract.connect(manufacturer).requestRecall(id, "Incoming inspection detected signs of contamination")
+    ).to.emit(contract, "RecallRequested");
   });
 
   it("blocks receiving and retail listing while a recall request is pending", async function () {
@@ -297,7 +332,14 @@ describe("FoodTraceability", function () {
   });
 
   it("only accepts one feedback from each wallet for a batch", async function () {
-    const id = await createProduct();
+    const id = await createProcessedOutput();
+    await expect(
+      contract.connect(consumer).addFeedback(id, 5, "Cannot review before retail sale")
+    ).to.be.revertedWith("Not for sale");
+
+    await contract.connect(distributor).shipProduct(id, retailer.address, "D01", 100, "City Market", "Delivered for retail sale");
+    await contract.connect(retailer).receiveProduct(id, "Quantity and seal verified at retail store");
+    await contract.connect(retailer).setForSale(id, 89000, "Listed after final quality inspection");
     await contract.connect(consumer).addFeedback(id, 5, "Very fresh");
     await expect(
       contract.connect(consumer).addFeedback(id, 4, "Second review")

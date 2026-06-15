@@ -94,15 +94,17 @@ Phiên bản hiện tại hỗ trợ một lô nguyên liệu chính cho mỗi l
 ```
 
 - Farmer, Manufacturer, Distributor hoặc Retailer đã tham gia lô có thể gửi yêu cầu.
-- Khi yêu cầu đang chờ, lô bị chặn chế biến, vận chuyển, nhận hàng và niêm yết.
+- Khi yêu cầu đang chờ, lô bị chặn thu hoạch, chế biến, vận chuyển, nhận hàng và niêm yết.
 - Nếu yêu cầu bị từ chối, lô tiếp tục hoạt động ở trạng thái trước đó.
 - Nếu thu hồi lô nguyên liệu được phê duyệt, các lô thành phẩm tạo từ nguyên liệu đó cũng chuyển sang `Recalled`.
+- Nếu thành phẩm đang có yêu cầu riêng, thu hồi từ lô nguyên liệu sẽ đồng thời kết thúc yêu cầu đó ở trạng thái `Approved`.
 - Admin chọn yêu cầu từ dropdown, không cần nhập mã lô thủ công.
 - Timeline giữ đầy đủ yêu cầu, kết luận và người thực hiện.
 
 ## 7. Feedback và rating
 
 - Feedback được lưu trên blockchain và gắn với địa chỉ ví.
+- Chỉ lô đang ở trạng thái `ForSale` mới nhận đánh giá mới.
 - Mỗi ví chỉ được đánh giá một lần trên mỗi lô.
 - Rating hợp lệ từ 1 đến 5.
 - Điểm trung bình được tính từ danh sách feedback trên frontend nên hỗ trợ số thập phân, ví dụ `4.5/5`.
@@ -270,15 +272,17 @@ Bộ test kiểm tra:
 - Đúng ví nhận ở từng chặng.
 - Validation dữ liệu và nhiệt độ.
 - Yêu cầu, từ chối và phê duyệt thu hồi.
-- Chặn nhận hàng/niêm yết khi thu hồi đang chờ.
+- Chặn thu hoạch, nhận hàng và niêm yết khi thu hồi đang chờ.
 - Thu hồi thành phẩm khi nguyên liệu bị thu hồi.
+- Kết thúc yêu cầu đang chờ của thành phẩm khi nguyên liệu bị thu hồi.
 - Chặn niêm yết lô hết hạn.
+- Chặn đánh giá lô chưa được niêm yết bán.
 - Mỗi ví chỉ feedback một lần và rating thập phân.
 
 Kết quả gần nhất:
 
 ```text
-16 passing
+19 passing
 ```
 
 ## 15. Giới hạn bảo mật và phạm vi
@@ -629,7 +633,7 @@ ETH không được dùng làm giá sản phẩm. ETH local chỉ trả gas; `pr
 
 ### 20.9. `requestRecall()` và `reviewRecall()`
 
-Participant đã tham gia lô có thể gửi yêu cầu thu hồi. Trong trạng thái `Pending`, các thao tác chế biến, vận chuyển, nhận hàng và niêm yết bị chặn.
+Participant đã tham gia hoặc đang được chỉ định nhận lô có thể gửi yêu cầu thu hồi. Trong trạng thái `Pending`, các thao tác thu hoạch, chế biến, vận chuyển, nhận hàng và niêm yết bị chặn.
 
 Admin có hai lựa chọn:
 
@@ -637,11 +641,13 @@ Admin có hai lựa chọn:
 - Phê duyệt: sản phẩm chuyển sang `Recalled`.
 
 Nếu Admin thu hồi nguyên liệu, contract duyệt qua `processedProductIds` và thu hồi các thành phẩm được tạo từ nguyên liệu đó.
+Yêu cầu đang chờ của thành phẩm liên quan cũng được kết thúc để danh sách Admin không còn yêu cầu treo trên một lô đã thu hồi.
 
 ### 20.10. `addFeedback()`
 
 Bất kỳ ví nào cũng có thể đánh giá, nhưng:
 
+- Sản phẩm phải đang ở trạng thái `ForSale`.
 - Rating phải từ 1 đến 5.
 - Bình luận phải có độ dài hợp lệ.
 - Một ví chỉ được đánh giá một lần cho mỗi lô.
@@ -830,7 +836,7 @@ Script kiểm tra mã lô đã tồn tại để hạn chế tạo trùng khi ch
 
 `FoodTraceability.test.js` deploy một contract mới trước mỗi test bằng `beforeEach`. Điều này bảo đảm các test độc lập, không phụ thuộc dữ liệu của test trước.
 
-16 test hiện tại bao phủ:
+19 test hiện tại bao phủ:
 
 - Cấp quyền và vô hiệu hóa participant.
 - Ngăn người không phải Admin quản lý tài khoản.
@@ -845,7 +851,10 @@ Script kiểm tra mã lô đã tồn tại để hạn chế tạo trùng khi ch
 - Liên kết nguyên liệu, thành phẩm và số dư.
 - Quy trình yêu cầu/phê duyệt/từ chối thu hồi.
 - Chặn giao dịch khi thu hồi đang chờ.
+- Cho phép bên nhận được chỉ định báo cáo thu hồi.
+- Đồng bộ yêu cầu thành phẩm khi nguyên liệu bị thu hồi.
 - Chặn niêm yết lô hết hạn.
+- Chỉ cho đánh giá sản phẩm đang bán.
 - Mỗi ví chỉ feedback một lần.
 
 ## 26. Kịch bản demo khi thuyết trình
